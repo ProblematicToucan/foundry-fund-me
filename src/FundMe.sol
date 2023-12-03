@@ -9,12 +9,12 @@ error FundMe__NotOwner();
 contract FundMe {
     using PriceConverter for uint256;
 
-    mapping(address => uint256) public addressToAmountFunded;
-    address[] public funders;
+    mapping(address => uint256) private s_addressToAmountFunded;
+    address[] private s_funders;
 
     // Could we make this constant?  /* hint: no! We should make it immutable! */
-    address public immutable i_owner;
-    uint256 public constant MINIMUM_USD = 5 * 10 ** 18;
+    address private immutable i_owner;
+    uint256 private constant MINIMUM_USD = 5 * 10 ** 18;
     AggregatorV3Interface private immutable s_priceFeed;
 
     constructor(address priceFeedAddress) {
@@ -28,8 +28,8 @@ contract FundMe {
             "You need to spend more ETH!"
         );
         // require(PriceConverter.getConversionRate(msg.value) >= MINIMUM_USD, "You need to spend more ETH!");
-        addressToAmountFunded[msg.sender] += msg.value;
-        funders.push(msg.sender);
+        s_addressToAmountFunded[msg.sender] += msg.value;
+        s_funders.push(msg.sender);
     }
 
     function getVersion() public view returns (uint256) {
@@ -43,15 +43,16 @@ contract FundMe {
     }
 
     function withdraw() public onlyOwner {
+        uint256 fundersLength = s_funders.length;
         for (
             uint256 funderIndex = 0;
-            funderIndex < funders.length;
+            funderIndex < fundersLength;
             funderIndex++
         ) {
-            address funder = funders[funderIndex];
-            addressToAmountFunded[funder] = 0;
+            address funder = s_funders[funderIndex];
+            s_addressToAmountFunded[funder] = 0;
         }
-        funders = new address[](0);
+        s_funders = new address[](0);
         // // transfer
         // payable(msg.sender).transfer(address(this).balance);
 
@@ -84,6 +85,24 @@ contract FundMe {
 
     receive() external payable {
         fund();
+    }
+
+    function getAddressToAmountFunded(
+        address fundingAddress
+    ) external view returns (uint256) {
+        return s_addressToAmountFunded[fundingAddress];
+    }
+
+    function getFunders() external view returns (address[] memory) {
+        return s_funders;
+    }
+
+    function getContractOwner() external view returns (address) {
+        return i_owner;
+    }
+
+    function getMinimumUsd() external pure returns (uint256) {
+        return MINIMUM_USD;
     }
 }
 
